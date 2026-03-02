@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model User {
+  id                 String          @id // Clerk user id
+  email              String
+  plan               String          @default("free")
+  subscriptionId     String?         @unique
+  subscriptionStatus String?
+  createdAt          DateTime        @default(now())
+  audits             Audit[]
+  usage              UsageTracking[]
+}
+
+model Audit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  url       String
+  score     Int
+  report    Json
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UsageTracking {
+  id         String @id @default(cuid())
+  userId     String
+  user       User   @relation(fields: [userId], references: [id])
+  month      Int
+  year       Int
+  auditCount Int    @default(0)
+
+  @@unique([userId, month, year])
+}
