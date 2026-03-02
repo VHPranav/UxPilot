@@ -1,5 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import prisma from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import * as cheerio from 'cheerio'
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
         const validatedReport = auditSchema.parse(JSON.parse(result.response.text()))
 
         // 6. Save Audit & Increment Usage (Atomic Transaction)
-        const finalAudit = await prisma.$transaction(async (tx) => {
+        const finalAudit = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
             // Re-check quota inside transaction to prevent last-millisecond race conditions
             if (user.plan === 'free') {
                 const usageCheck = await tx.usageTracking.findUnique({
