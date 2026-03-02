@@ -6,7 +6,8 @@
     "dev": "cross-env NEXT_TURBOPACK=0 next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.0",
