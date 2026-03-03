@@ -50,14 +50,15 @@ export async function POST(req: Request) {
         }
 
         // 3. Usage & Plan Logic (Transaction)
-        // We fetch the user and their current usage for this month
+        const isAdmin = process.env.ADMIN_EMAIL === email
+
         const user = await prisma.user.upsert({
             where: { id: userId },
             update: { email },
             create: { id: userId, email, plan: 'free' }
         })
 
-        if (user.plan === 'free') {
+        if (user.plan === 'free' && !isAdmin) {
             const usage = await prisma.usageTracking.findUnique({
                 where: {
                     userId_month_year: { userId, month, year }
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
         // 6. Save Audit & Increment Usage (Atomic Transaction)
         const finalAudit = await prisma.$transaction(async (tx: TransactionClient) => {
             // Re-check quota inside transaction to prevent last-millisecond race conditions
-            if (user.plan === 'free') {
+            if (user.plan === 'free' && !isAdmin) {
                 const usageCheck = await tx.usageTracking.findUnique({
                     where: { userId_month_year: { userId, month, year } }
                 })
