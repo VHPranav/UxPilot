@@ -12,12 +12,32 @@ const auditSchema = z.object({
     score: z.number().min(0).max(100),
     summary: z.string(),
     issues: z.array(z.object({
-        category: z.enum(["CTA", "Typography", "Layout", "Trust", "Accessibility"]),
+        category: z.string().transform((val) => {
+            const allowed = ["CTA", "Typography", "Layout", "Trust", "Accessibility"]
+            const found = allowed.find(a => a.toLowerCase() === val.toLowerCase())
+            if (found) return found as "CTA" | "Typography" | "Layout" | "Trust" | "Accessibility"
+
+            // Mapping common AI hallucinations or variations
+            const mapping: Record<string, string> = {
+                "navigation": "Layout",
+                "content": "Typography",
+                "visuals": "Layout",
+                "seo": "Trust",
+                "performance": "Layout",
+                "forms": "CTA"
+            }
+            return (mapping[val.toLowerCase()] || "Layout") as "CTA" | "Typography" | "Layout" | "Trust" | "Accessibility"
+        }),
         problem: z.string(),
         suggestion: z.string(),
         severity: z.enum(["low", "medium", "high"])
     }))
 })
+
+function cleanAIResponse(text: string) {
+    // Remove markdown code blocks if present
+    return text.replace(/```json\n?/, '').replace(/```\n?$/, '').trim()
+}
 
 export async function POST(req: Request) {
     try {
@@ -65,9 +85,9 @@ export async function POST(req: Request) {
                 }
             })
 
-            if (usage && usage.auditCount >= 1) {
+            if (usage && usage.auditCount >= 3) {
                 return NextResponse.json({
-                    error: 'Monthly audit limit reached for Free plan (1 audit/month). Upgrade to Pro for unlimited audits.'
+                    error: 'Monthly audit limit reached for Free plan (3 audits/month). Upgrade to Pro for unlimited audits.'
                 }, { status: 403 })
             }
         }
@@ -97,7 +117,9 @@ export async function POST(req: Request) {
         Website URL: ${url}\nContent:\n${textContent}`
 
         const result = await model.generateContent(prompt)
-        const validatedReport = auditSchema.parse(JSON.parse(result.response.text()))
+        const rawText = result.response.text()
+        const cleanedText = cleanAIResponse(rawText)
+        const validatedReport = auditSchema.parse(JSON.parse(cleanedText))
 
         // 6. Save Audit & Increment Usage (Atomic Transaction)
         const finalAudit = await prisma.$transaction(async (tx: TransactionClient) => {
@@ -106,7 +128,7 @@ export async function POST(req: Request) {
                 const usageCheck = await tx.usageTracking.findUnique({
                     where: { userId_month_year: { userId, month, year } }
                 })
-                if (usageCheck && usageCheck.auditCount >= 1) {
+                if (usageCheck && usageCheck.auditCount >= 3) {
                     throw new Error('QUOTA_EXCEEDED')
                 }
             }

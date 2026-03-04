@@ -35,7 +35,7 @@ export default function PricingWireframePage() {
                     price="₹0"
                     period="forever"
                     desc="Perfect for trying out UXPilot with a single audit."
-                    features={['1 audit per account', 'Basic UX score', 'URL-only analysis', 'PDF export']}
+                    features={['3 audits per account', 'Basic UX score', 'URL-only analysis', 'PDF export']}
                     cta="Get started free"
                     highlight={false}
                 />
@@ -78,7 +78,7 @@ export default function PricingWireframePage() {
                     {['Audits per month', 'UX Score', 'History & Trends', 'PDF / Email Reports', 'API Access', 'Team Members', 'Priority Support'].map((row, i) => (
                         <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', borderBottom: '1px solid #1e1e1e' }}>
                             <WireBox w='100%' h={36} label={row} style={{ borderRadius: 0, border: 'none', justifyContent: 'flex-start', paddingLeft: 20 }} />
-                            <WireBox w='100%' h={36} label={i === 0 ? '1' : i > 2 ? '✗' : '✓'} style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #1e1e1e', color: i > 2 ? '#444' : '#666' }} />
+                            <WireBox w='100%' h={36} label={i === 0 ? '3' : i > 2 ? '✗' : '✓'} style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #1e1e1e', color: i > 2 ? '#444' : '#666' }} />
                             <WireBox w='100%' h={36} label={i === 0 ? '50' : i > 4 ? '✗' : '✓'} accent style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #1e1e1e' }} />
                             <WireBox w='100%' h={36} label="✓" style={{ borderRadius: 0, border: 'none', borderLeft: '1px solid #1e1e1e', color: '#3DFFC3' }} />
                         </div>

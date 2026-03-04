@@ -5,6 +5,10 @@ import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 import AuditForm from './AuditForm'
 import AuditResults from './AuditResults'
+import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
+import { EmptyState } from './ui/EmptyState'
+import { AuditSkeleton } from './ui/Skeleton'
 
 interface DashboardClientProps {
     initialAudits: any[]
@@ -28,12 +32,15 @@ export default function DashboardClient({
     const [latestAudit, setLatestAudit] = useState<any | null>(null)
     const [auditHistory, setAuditHistory] = useState(initialAudits)
     const [isUpgrading, setIsUpgrading] = useState(false)
+    const [isAuditRunning, setIsAuditRunning] = useState(false)
     const [userPlan] = useState(initialPlan)
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
     const handleAuditComplete = (audit: any) => {
         setLatestAudit(audit)
-        if (userId) setAuditHistory([audit, ...auditHistory])
+        if (userId) {
+            setAuditHistory([audit, ...auditHistory])
+        }
     }
 
     const handleUpgrade = async () => {
@@ -46,12 +53,15 @@ export default function DashboardClient({
                 key: data.keyId,
                 subscription_id: data.subscriptionId,
                 name: 'UXPilot Pro',
-                handler: () => { alert('Payment Successful!'); window.location.reload() },
+                handler: () => {
+                    toast.success('Upgrade Successful! Welcome to Pro.')
+                    window.location.reload()
+                },
                 theme: { color: '#3DFFC3' }
             })
             razorpay.open()
         } catch (err: any) {
-            alert(err.message)
+            toast.error(err.message || 'Payment failed')
         } finally {
             setIsUpgrading(false)
         }
@@ -110,8 +120,8 @@ export default function DashboardClient({
 
             {/* Bottom */}
             <div className="border-t border-white/[0.07] px-2 py-2 space-y-0.5">
-                <NavLink icon={<KeyIcon />} label="Upgrade to Pro" href="#" onClick={() => setSidebarOpen(false)} />
-                <NavLink icon={<SettingsIcon />} label="Settings" href="#" onClick={() => setSidebarOpen(false)} />
+                <NavLink icon={<KeyIcon />} label="Upgrade to Pro" href="/pricing" onClick={() => setSidebarOpen(false)} />
+                <NavLink icon={<SettingsIcon />} label="Settings" href="/settings" onClick={() => setSidebarOpen(false)} />
                 <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/5 cursor-pointer">
                     <UserButton afterSignOutUrl="/" />
                     <span className="text-[14px] text-zinc-500 truncate">{userEmail}</span>
@@ -135,9 +145,7 @@ export default function DashboardClient({
                     className="fixed inset-0 z-50 md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 >
-                    {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-                    {/* Drawer */}
                     <aside
                         className="absolute inset-y-0 left-0 w-72 flex flex-col bg-[#121212] border-r border-white/[0.07]"
                         onClick={e => e.stopPropagation()}
@@ -168,73 +176,116 @@ export default function DashboardClient({
                         </div>
                         <span className="text-[14px] font-bold text-white">UXPilot</span>
                     </div>
-                    <div className="ml-auto">
-                        <UserButton afterSignOutUrl="/" />
-                    </div>
                 </div>
 
                 {/* ── HEADER ── */}
-                <div className="px-4 md:px-10 pt-6 md:pt-10 pb-5 md:pb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-white/[0.06]">
-                    <h1 className="text-3xl md:text-4xl font-medium text-white tracking-[-0.06em]">
-                        Welcome back, {userFirstName}
-                    </h1>
+                <header className="px-4 md:px-10 pt-6 md:pt-10 pb-5 md:pb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-white/[0.06]">
+                    <div>
+                        <h1 className="text-3xl md:text-4xl font-medium text-white tracking-[-0.06em]">
+                            Welcome back, {userFirstName}
+                        </h1>
+                        <p className="text-zinc-500 text-sm mt-1">Ready to optimize your user experience?</p>
+                    </div>
                     <div className="flex items-center gap-2 text-[16px] text-zinc-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#3DFFC3] animate-pulse shrink-0" />
-                        <span className="font-semibold text-white text-[16px]">New</span>
-                        <span className="text-zinc-500 hidden sm:inline">AI-powered UX scoring is live</span>
+                        <span className="font-semibold text-white text-[16px]">Live</span>
+                        <span className="text-zinc-500 hidden sm:inline">AI-powered UX scoring</span>
                     </div>
-                </div>
+                </header>
 
                 {/* ── AUDIT BAR ── */}
-                <div className="px-4 md:px-10 py-5 md:py-6 border-b border-white/[0.06]">
-                    <AuditForm onAuditComplete={handleAuditComplete} />
+                <div className="px-4 md:px-10 py-5 md:py-6 border-b border-white/[0.06] bg-[#1a1a1a]">
+                    <AuditForm
+                        onAuditComplete={handleAuditComplete}
+                        onLoadingChange={setIsAuditRunning}
+                    />
                 </div>
 
-                {/* ── RECENT AUDITS ── */}
-                <div className="px-4 md:px-10 py-6 md:py-8 flex-1">
-                    <p className="text-[16px] font-semibold text-zinc-400 mb-4">Jump back in</p>
-                    {auditHistory.length > 0 ? (
-                        <div className="space-y-2">
-                            {auditHistory.slice(0, 6).map((audit: any) => (
-                                <div
-                                    key={audit.id}
-                                    onClick={() => setLatestAudit(audit)}
-                                    className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 md:py-3.5 rounded-xl bg-[#111111] border border-white/[0.06] hover:border-white/[0.12] hover:bg-[#1a1a1a] cursor-pointer transition-all group"
-                                >
-                                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                        <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-zinc-500 group-hover:text-[#3DFFC3] transition-colors" fill="none" viewBox="0 0 16 16">
-                                            <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
-                                            <path d="M5 8h6M5 5.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[16px] md:text-[17px] font-medium text-white truncate group-hover:text-[#3DFFC3] transition-colors">
-                                            {audit.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                        </p>
-                                        <p className="text-[14px] text-zinc-500 mt-0.5">
-                                            Audit • {new Date(audit.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </p>
-                                    </div>
-                                    <div className={`text-[24px] md:text-[26px] font-black shrink-0 ${audit.score > 70 ? 'text-[#3DFFC3]' : audit.score > 40 ? 'text-orange-400' : 'text-red-400'}`}>
-                                        {audit.score}
-                                    </div>
+                {/* ── CONTENT AREA ── */}
+                <div className="px-4 md:px-10 py-6 md:py-10 flex-1 flex flex-col gap-10">
+
+                    <AnimatePresence mode="wait">
+                        {isAuditRunning ? (
+                            <motion.div
+                                key="skeleton"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="w-full"
+                            >
+                                <p className="text-[16px] font-semibold text-zinc-400 mb-4 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                                    Analyzing Layout & Conversion...
+                                </p>
+                                <AuditSkeleton />
+                            </motion.div>
+                        ) : latestAudit ? (
+                            <motion.div
+                                key="results"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ type: "spring", stiffness: 100 }}
+                            >
+                                <p className="text-[16px] font-semibold text-zinc-400 mb-4">Latest Result</p>
+                                <AuditResults audit={latestAudit} />
+                            </motion.div>
+                        ) : auditHistory.length === 0 ? (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                            >
+                                <EmptyState />
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="history"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="space-y-6"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[16px] font-semibold text-zinc-400 uppercase tracking-widest text-xs">Jump back in</p>
+                                    <span className="text-zinc-600 text-xs font-bold uppercase tracking-widest">{auditHistory.length} Total Audits</span>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-12 text-center border border-dashed border-white/[0.07] rounded-xl">
-                            <p className="text-zinc-500 text-[17px]">No audits yet — paste a URL above to get started.</p>
-                        </div>
-                    )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {auditHistory.slice(0, 9).map((audit: any, index: number) => (
+                                        <motion.div
+                                            key={audit.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            onClick={() => {
+                                                setLatestAudit(audit)
+                                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                                            }}
+                                            className="flex items-center gap-4 p-5 rounded-[1.5rem] bg-[#111111] border border-white/[0.04] hover:border-[#3DFFC3]/20 hover:bg-[#1a1a1a] cursor-pointer transition-all group relative overflow-hidden"
+                                        >
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-[#3DFFC3]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-[#3DFFC3]/10 transition-colors">
+                                                <svg className="w-5 h-5 text-zinc-500 group-hover:text-[#3DFFC3] transition-colors" fill="none" viewBox="0 0 16 16">
+                                                    <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.3" />
+                                                    <path d="M5 8h6M5 5.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[17px] font-bold text-white truncate group-hover:text-[#3DFFC3] transition-colors">
+                                                    {audit.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                                </p>
+                                                <p className="text-[13px] text-zinc-500 font-medium">
+                                                    {new Date(audit.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </p>
+                                            </div>
+                                            <div className={`text-2xl font-black shrink-0 ${audit.score > 70 ? 'text-[#3DFFC3]' : audit.score > 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                                                {audit.score}
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-
-                {/* ── LATEST RESULT ── */}
-                {latestAudit && (
-                    <div className="px-4 md:px-10 pb-10">
-                        <p className="text-[16px] font-semibold text-zinc-400 mb-4">Latest Result</p>
-                        <AuditResults audit={latestAudit} />
-                    </div>
-                )}
             </main>
         </div>
     )
